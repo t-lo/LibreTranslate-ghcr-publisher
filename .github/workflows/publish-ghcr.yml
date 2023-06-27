@@ -43,7 +43,7 @@ jobs:
         run: |
           cd LibreTranslate
           tag=$(cat IMAGE_TAG)
-          docker build -t "$(cat IMAGE_TAG)" --build-arg with_models=true .
+          docker build -f docker/Dockerfile -t "$(cat IMAGE_TAG)" --build-arg with_models=true .
 
       - name: Login to GHCR
         uses: docker/login-action@v1
