@@ -1,0 +1,53 @@
+name: Check upstream LibreTranslate for a new release / version tag
+
+on:
+  schedule:
+    # run once an hour, at the hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check_for_new_version:
+    name: "Check for a new upstream release tag"
+    runs-on: ubuntu-latest
+    outputs:
+      build_version: ${{ steps.grok-version.outputs.build_version }}
+    steps:
+      - name: Check upstream and ghcr versions
+        id: grok-version
+        run: |
+          echo "Fetching LibreTranslate repo to get release tags"
+          git clone https://github.com/LibreTranslate/LibreTranslate.git
+          git -C LibreTranslate tag \
+              | sort -V -r \
+              | head -n 1 \
+              | tee LATEST_UPSTREAM
+
+          echo "Checking the latest published models container image version"
+          token=$(curl "https://ghcr.io/token?scope=repository:t-lo/libretranslate:pull" | jq -r '.token')
+          curl --silent --show-error \
+               -H "Authorization: Bearer ${token}" \
+                  "https://ghcr.io/v2/t-lo/libretranslate/tags/list" \
+              | jq -r '.tags | join("\n")' \
+              | sort -r -V \
+              | head -n 1 \
+              | tee LATEST_PUBLISHED
+
+          latest_upstream=$(cat LATEST_UPSTREAM)
+          latest_published=$(sed 's/-models//' LATEST_PUBLISHED)
+          echo "Latest upstream: ${latest_upstream}, latest published: ${latest_published}"
+
+          latest=$(echo -e "${latest_upstream}\n${latest_published}" | sort -V -r | head -n1)
+          if [ "${latest_published}" != "${latest}" ] ; then
+            echo "Triggering new models container image build for ${latest}"
+            echo "build_version=${latest}" >> $GITHUB_OUTPUT
+          fi
+
+  trigger_build_conditionally:
+    name: "Trigger a new build if a new tag was detected"
+    if: needs.check_for_new_version.outputs.build_version
+    needs: [check_for_new_version]
+    uses: ./.github/workflows/publish-ghcr.yml
+    with:
+      version_tag: ${{ needs.check_for_new_version.outputs.build_version }}
+      tag_as_latest: true

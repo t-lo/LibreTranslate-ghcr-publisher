@@ -8,11 +8,24 @@ on:
     inputs:
       version_tag:
         description: Optional version tag to build. Defaults to latest main.
+        type: string
         required: false
       tag_as_latest:
         description: Also tag image as latest (in addition to tag supplied / computed).
         type: boolean
-        default: 0
+        default: false
+
+  workflow_call:
+    inputs:
+      version_tag:
+        description: Optional version tag to build. Defaults to latest main.
+        type: string
+        required: false
+      tag_as_latest:
+        description: Also tag image as latest (in addition to tag supplied / computed).
+        type: boolean
+        default: false
+
 
 jobs:
   build_and_publish_image:
