@@ -76,6 +76,12 @@ jobs:
           docker push ghcr.io/t-lo/libretranslate:latest
 
       - name: Send an email to report that a new version is available
+        env:
+          # required to use server in if condition below.
+          # See
+          # https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions#using-secrets-in-a-workflow
+          smtp_server_is_set: ${{ secrets.SMTP_SERVER }}
+        if: ${{ env.smtp_server_is_set != '' }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: ${{secrets.SMTP_SERVER}}
