@@ -51,15 +51,15 @@ jobs:
           cd LibreTranslate
           git describe --tags | tee SRC_TAG
           echo "ghcr.io/t-lo/libretranslate:$(cat SRC_TAG)-models" | tee IMAGE_TAG
+          echo "IMAGE_TAG=$(cat IMAGE_TAG)" >> "$GITHUB_ENV"
 
       - name: Build image w/ models
         run: |
           cd LibreTranslate
-          tag=$(cat IMAGE_TAG)
-          docker build -f docker/Dockerfile -t "$(cat IMAGE_TAG)" --build-arg with_models=true .
+          docker build -f docker/Dockerfile -t "$IMAGE_TAG" --build-arg with_models=true .
 
       - name: Login to GHCR
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -72,5 +72,31 @@ jobs:
       - name: Optionally Tag Image as Latest
         if: ${{ inputs.tag_as_latest }}
         run: |
-          docker tag "$(cat LibreTranslate/IMAGE_TAG)" ghcr.io/t-lo/libretranslate:latest
+          docker tag "$IMAGE_TAG" ghcr.io/t-lo/libretranslate:latest
           docker push ghcr.io/t-lo/libretranslate:latest
+
+      - name: Send an email to report that a new version is available
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{secrets.SMTP_SERVER}}
+          server_port: 465
+          username: ${{secrets.SMTP_USER}}
+          password: ${{secrets.SMTP_PASSWORD}}
+          to: ${{secrets.EMAIL_TO}} # Not today, spammers!
+          from: ${{secrets.EMAIL_FROM}} # see "to:"
+          subject: New libretranslate release ${{env.IMAGE_TAG}}
+          html_body: |
+            <html><body>
+              <h1>A new LibreTranslate container image w/ models is available</h1>
+              <ul>
+                <li>Version: ${{env.IMAGE_TAG}}</li>
+                <li>Docker pull url:
+                    ghcr.io/t-lo/libretranslate:${{env.IMAGE_TAG}}
+                </li>
+                <li>GHCR link:
+                  <a href="https://github.com/t-lo/LibreTranslate/pkgs/container/libretranslate">
+                    https://github.com/t-lo/LibreTranslate/pkgs/container/libretranslate
+                  </a>
+                </li>
+              </ul>
+            </body></html>
