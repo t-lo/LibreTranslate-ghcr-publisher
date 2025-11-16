@@ -53,6 +53,18 @@ jobs:
           echo "ghcr.io/t-lo/libretranslate:$(cat SRC_TAG)-models" | tee IMAGE_TAG
           echo "IMAGE_TAG=$(cat IMAGE_TAG)" >> "$GITHUB_ENV"
 
+      - name: Make Docker use /mnt
+        run: |
+          cd /mnt
+          sudo swapoff -a
+          sudo rm -rf *
+          sudo mkdir -p /mnt/docker/var
+          sudo mkdir -p /etc/docker
+          sudo cat /etc/docker/daemon.json || true
+          echo -e '{\n  "data-root": "/mnt/docker/var"\n}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+          df -h
+
       - name: Build image w/ models
         run: |
           cd LibreTranslate
